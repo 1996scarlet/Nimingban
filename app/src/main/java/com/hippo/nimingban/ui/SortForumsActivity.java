@@ -16,28 +16,22 @@
 
 package com.hippo.nimingban.ui;
 
-import android.app.Dialog;
-import android.content.DialogInterface;
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.graphics.drawable.NinePatchDrawable;
 import android.graphics.drawable.StateListDrawable;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
-import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
-import android.text.TextUtils;
-import android.util.Log;
 import android.view.Gravity;
-import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
-import android.widget.EditText;
+import android.widget.CompoundButton;
 import android.widget.ImageView;
+import android.widget.Switch;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.h6ah4i.android.widget.advrecyclerview.animator.GeneralItemAnimator;
 import com.h6ah4i.android.widget.advrecyclerview.animator.SwipeDismissItemAnimator;
@@ -52,28 +46,26 @@ import com.h6ah4i.android.widget.advrecyclerview.swipeable.action.SwipeResultAct
 import com.h6ah4i.android.widget.advrecyclerview.touchguard.RecyclerViewTouchActionGuardManager;
 import com.h6ah4i.android.widget.advrecyclerview.utils.AbstractDraggableSwipeableItemViewHolder;
 import com.h6ah4i.android.widget.advrecyclerview.utils.WrapperAdapterUtils;
-import com.hippo.app.ProgressDialogBuilder;
 import com.hippo.easyrecyclerview.EasyRecyclerView;
 import com.hippo.effect.ViewTransition;
 import com.hippo.nimingban.GuideHelper;
-import com.hippo.nimingban.NMBApplication;
 import com.hippo.nimingban.R;
-import com.hippo.nimingban.client.NMBClient;
 import com.hippo.nimingban.client.NMBRequest;
-import com.hippo.nimingban.client.ac.data.ACForum;
-import com.hippo.nimingban.client.ac.data.ACForumGroup;
 import com.hippo.nimingban.client.data.Site;
 import com.hippo.nimingban.dao.ACForumRaw;
 import com.hippo.nimingban.util.DB;
+import com.hippo.nimingban.util.ForumAutoSortingUtils;
 import com.hippo.nimingban.util.Settings;
+import com.hippo.text.Html;
 import com.hippo.util.DrawableManager;
 import com.hippo.yorozuya.LayoutUtils;
 import com.hippo.yorozuya.ResourcesUtils;
 import com.hippo.yorozuya.ViewUtils;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import de.greenrobot.dao.query.LazyList;
 
@@ -82,6 +74,8 @@ public class SortForumsActivity extends TranslucentActivity {
     public static final String KEY_SITE = "site";
 
     private Site mSite;
+
+    private boolean mAutoSorting = Settings.getForumAutoSorting();
 
     private View mTip;
     private EasyRecyclerView mRecyclerView;
@@ -96,12 +90,12 @@ public class SortForumsActivity extends TranslucentActivity {
 
     private boolean mNeedUpdate;
 
-    private Dialog mProgressDialog;
-
     private NMBRequest mNMBRequest;
 
     // TODO support other site
     private LazyList<ACForumRaw> mLazyList;
+    @SuppressLint("UseSparseArrays")
+    private Map<Integer, CharSequence> mForumNames = new HashMap<>();
 
     private boolean handlerIntent(Intent intent) {
         if (intent == null) {
@@ -188,6 +182,9 @@ public class SortForumsActivity extends TranslucentActivity {
 
         if (Settings.getGuideSortForumsActivity()) {
             showEyeGuide();
+        } else {
+            // Eye guide was shown
+            tryShowSecondGuide();
         }
     }
 
@@ -204,182 +201,55 @@ public class SortForumsActivity extends TranslucentActivity {
                 .setOnDissmisListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        showModifyGuide();
+                        tryShowSecondGuide();
+                        Settings.putGuideSortForumsActivity(false);
                     }
                 }).show();
     }
 
-    private void showModifyGuide() {
-        new GuideHelper.Builder(this)
-                .setColor(ResourcesUtils.getAttrColor(this, R.attr.colorPrimary))
-                .setPadding(LayoutUtils.dp2pix(this, 16))
-                .setPaddingTop(LayoutUtils.dp2pix(this, 56))
-                .setPaddingBottom(LayoutUtils.dp2pix(this, 56))
-                .setMessagePosition(Gravity.CENTER)
-                .setMessage(getString(R.string.modify_forum_title))
-                .setButton(getString(R.string.get_it))
-                .setBackgroundColor(0x73000000)
-                .setOnDissmisListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        showSwipeGuide();
-                    }
-                }).show();
+    private void tryShowSecondGuide() {
+        if (Settings.getGuidePinningStar() && mAutoSorting) {
+            showStarGuide();
+        } else if (Settings.getGuideSortingFourBars() && !mAutoSorting) {
+            showFourBarsGuide();
+        }
     }
 
-    private void showSwipeGuide() {
-        new GuideHelper.Builder(this)
-                .setColor(ResourcesUtils.getAttrColor(this, R.attr.colorPrimary))
-                .setPadding(LayoutUtils.dp2pix(this, 16))
-                .setPaddingTop(LayoutUtils.dp2pix(this, 56))
-                .setPaddingBottom(LayoutUtils.dp2pix(this, 56))
-                .setMessagePosition(Gravity.CENTER)
-                .setMessage(getString(R.string.swipe_forum_remove))
-                .setButton(getString(R.string.get_it))
-                .setBackgroundColor(0x73000000)
-                .setOnDissmisListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        showGreenBlockGuide();
-                    }
-                }).show();
-    }
-
-    private void showGreenBlockGuide() {
+    private void showFourBarsGuide() {
         new GuideHelper.Builder(this)
                 .setColor(ResourcesUtils.getAttrColor(this, R.attr.colorPrimary))
                 .setPadding(LayoutUtils.dp2pix(this, 16))
                 .setPaddingTop(LayoutUtils.dp2pix(this, 56))
                 .setPaddingBottom(LayoutUtils.dp2pix(this, 56))
                 .setMessagePosition(Gravity.RIGHT)
-                .setMessage(getString(R.string.drag_green_block_exchange))
+                .setMessage(getString(R.string.drag_four_bars_exchange))
                 .setButton(getString(R.string.get_it))
                 .setBackgroundColor(0x73000000)
                 .setOnDissmisListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        showRefreshGuide();
+                        Settings.putGuideSortingFourBars(false);
                     }
                 }).show();
     }
 
-    @SuppressWarnings("WrongConstant")
-    private void showRefreshGuide() {
+    private void showStarGuide() {
         new GuideHelper.Builder(this)
                 .setColor(ResourcesUtils.getAttrColor(this, R.attr.colorPrimary))
                 .setPadding(LayoutUtils.dp2pix(this, 16))
                 .setPaddingTop(LayoutUtils.dp2pix(this, 56))
                 .setPaddingBottom(LayoutUtils.dp2pix(this, 56))
-                .setMessagePosition(Gravity.RIGHT | Gravity.TOP)
-                .setMessage(getString(R.string.click_refresh_icon_update_list))
+                .setMessagePosition(Gravity.RIGHT)
+                .setMessage(getString(R.string.click_star_icon_pin))
                 .setButton(getString(R.string.get_it))
                 .setBackgroundColor(0x73000000)
                 .setOnDissmisListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        showAddGuide();
+                        Settings.putGuidePinningStar(false);
                     }
                 }).show();
     }
-
-    @SuppressWarnings("WrongConstant")
-    private void showAddGuide() {
-        new GuideHelper.Builder(this)
-                .setColor(ResourcesUtils.getAttrColor(this, R.attr.colorPrimary))
-                .setPadding(LayoutUtils.dp2pix(this, 16))
-                .setPaddingTop(LayoutUtils.dp2pix(this, 56))
-                .setPaddingBottom(LayoutUtils.dp2pix(this, 56))
-                .setMessagePosition(Gravity.RIGHT | Gravity.TOP)
-                .setMessage(getString(R.string.click_add_icon_add_forum))
-                .setButton(getString(R.string.get_it))
-                .setBackgroundColor(0x73000000)
-                .setOnDissmisListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        Settings.putGuideSortForumsActivity(false);
-                    }
-                }).show();
-    }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.activity_forum_sort, menu);
-        return true;
-    }
-
-    private class ForumDialogHelper implements View.OnClickListener {
-
-        private ACForumRaw mRaw;
-
-        private View mView;
-
-        private EditText mName;
-        private EditText mId;
-
-        private Dialog mDialog;
-        private Button mButton;
-
-        public ForumDialogHelper() {
-            mView = getLayoutInflater().inflate(R.layout.dialog_forum, null);
-            mName = (EditText) mView.findViewById(R.id.name);
-            mId = (EditText) mView.findViewById(R.id.id);
-        }
-
-        public ForumDialogHelper(ACForumRaw raw) {
-            mRaw = raw;
-
-            mView = getLayoutInflater().inflate(R.layout.dialog_forum, null);
-            mName = (EditText) mView.findViewById(R.id.name);
-            mId = (EditText) mView.findViewById(R.id.id);
-
-            mName.setText(mRaw.getDisplayname());
-            mId.setText(mRaw.getForumid());
-            mId.setEnabled(false);
-        }
-
-        public View getView() {
-            return mView;
-        }
-
-        public void setDialog(AlertDialog dialog) {
-            mDialog = dialog;
-            mButton = dialog.getButton(DialogInterface.BUTTON_POSITIVE);
-            mButton.setOnClickListener(this);
-        }
-
-        @Override
-        public void onClick(View v) {
-            if (mButton == v) {
-                String name = mName.getText().toString();
-                String id = mId.getText().toString();
-                if (TextUtils.isEmpty(name) || TextUtils.isEmpty(id)) {
-                    Toast.makeText(SortForumsActivity.this, R.string.name_id_cant_empty, Toast.LENGTH_SHORT).show();
-                    return;
-                }
-
-                if (mRaw == null) {
-                    ACForumRaw raw = DB.getACForumForForumid(id);
-                    if (raw != null) {
-                        Toast.makeText(SortForumsActivity.this,
-                                getString(R.string.forum_id_exists, raw.getDisplayname()), Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-
-                    DB.addACForums(name, id);
-                } else {
-                    mRaw.setDisplayname(name);
-                    mRaw.setForumid(id);
-                    DB.updateACForum(mRaw);
-                }
-
-                updateLazyList(false);
-                mAdapter.notifyDataSetChanged();
-                mNeedUpdate = true;
-                mDialog.dismiss();
-            }
-        }
-    }
-
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
@@ -387,48 +257,6 @@ public class SortForumsActivity extends TranslucentActivity {
             case android.R.id.home:
                 finish();
                 return true;
-            case R.id.action_refresh: {
-                if (mNMBRequest != null) {
-                    return true;
-                }
-
-                DialogInterface.OnClickListener listener = new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        if (mNMBRequest != null) {
-                            mNMBRequest.cancel();
-                            mNMBRequest = null;
-                        }
-                    }
-                };
-
-                mProgressDialog = new ProgressDialogBuilder(this)
-                        .setTitle(R.string.please_wait)
-                        .setMessage(R.string.refreshing_forum_list)
-                        .setCancelable(false)
-                        .setNegativeButton(android.R.string.cancel, listener)
-                        .show();
-
-                NMBClient client = NMBApplication.getNMBClient(this);
-                NMBRequest request = new NMBRequest();
-                mNMBRequest = request;
-                request.setSite(mSite);
-                request.setMethod(NMBClient.METHOD_GET_FORUM_LIST);
-                request.setCallback(new ForumsListener());
-                client.execute(request);
-
-                return true;
-            }
-            case R.id.action_add: {
-                ForumDialogHelper helper = new ForumDialogHelper();
-                AlertDialog dialog = new AlertDialog.Builder(this)
-                        .setTitle(R.string.add_forum)
-                        .setView(helper.getView())
-                        .setPositiveButton(android.R.string.ok, null)
-                        .show();
-                helper.setDialog(dialog);
-                return true;
-            }
             default:
                 return super.onOptionsItemSelected(item);
         }
@@ -463,6 +291,7 @@ public class SortForumsActivity extends TranslucentActivity {
 
         if (mLazyList != null) {
             mLazyList.close();
+            mForumNames.clear();
         }
 
         if (mNMBRequest != null) {
@@ -481,62 +310,112 @@ public class SortForumsActivity extends TranslucentActivity {
     }
 
     private void updateLazyList(boolean animation) {
-        LazyList<ACForumRaw> lazyList = DB.getACForumLazyList();
+        LazyList<ACForumRaw> lazyList = DB.getACForumLazyList(mAutoSorting);
         if (mLazyList != null) {
             mLazyList.close();
+            mForumNames.clear();
         }
         mLazyList = lazyList;
 
         mViewTransition.showView(mLazyList.isEmpty() ? 0 : 1, animation);
     }
 
-    private class ForumHolder extends AbstractDraggableSwipeableItemViewHolder implements View.OnClickListener {
+    private static final int TYPE_FORUM = 0;
+    private static final int TYPE_SWITCH = 1;
+
+    private class ForumHolder extends AbstractDraggableSwipeableItemViewHolder implements View.OnClickListener, CompoundButton.OnCheckedChangeListener {
 
         public View swipeHandler;
         public ImageView visibility;
+        public Switch autoSortingSwitch;
         public TextView forum;
         public View dragHandler;
+        public ImageView pinning;
 
-        public ForumHolder(View itemView) {
+        public ForumHolder(View itemView, int viewType) {
             super(itemView);
 
             swipeHandler = itemView.findViewById(R.id.swipe_handler);
             visibility = (ImageView) itemView.findViewById(R.id.visibility);
+            autoSortingSwitch = itemView.findViewById(R.id.auto_sorting_switch);
             forum = (TextView) itemView.findViewById(R.id.forum);
             dragHandler = itemView.findViewById(R.id.drag_handler);
+            pinning = itemView.findViewById(R.id.pinning);
 
-            visibility.setOnClickListener(this);
-            forum.setOnClickListener(this);
+            if (viewType == TYPE_FORUM) {
+                autoSortingSwitch.setVisibility(View.GONE);
 
-            StateListDrawable drawable = new StateListDrawable();
-            drawable.addState(new int[]{android.R.attr.state_activated},
-                    DrawableManager.getDrawable(SortForumsActivity.this, R.drawable.v_eye_on_x24));
-            drawable.addState(new int[]{},
-                    DrawableManager.getDrawable(SortForumsActivity.this, R.drawable.v_eye_off_x24));
-            visibility.setImageDrawable(drawable);
+                visibility.setOnClickListener(this);
+                forum.setOnClickListener(this);
+                pinning.setOnClickListener(this);
+
+                StateListDrawable visibilityDrawable = new StateListDrawable();
+                visibilityDrawable.addState(new int[]{android.R.attr.state_activated},
+                        DrawableManager.getDrawable(SortForumsActivity.this, R.drawable.v_eye_on_x24));
+                visibilityDrawable.addState(new int[]{},
+                        DrawableManager.getDrawable(SortForumsActivity.this, R.drawable.v_eye_off_x24));
+                visibility.setImageDrawable(visibilityDrawable);
+
+                StateListDrawable pinningDrawable = new StateListDrawable();
+                pinningDrawable.addState(new int[]{android.R.attr.state_activated},
+                        DrawableManager.getDrawable(SortForumsActivity.this, R.drawable.v_star_x24));
+                pinningDrawable.addState(new int[]{},
+                        DrawableManager.getDrawable(SortForumsActivity.this, R.drawable.v_star_border_x24));
+                pinning.setImageDrawable(pinningDrawable);
+            } else if (viewType == TYPE_SWITCH) {
+                visibility.setVisibility(View.GONE);
+                dragHandler.setVisibility(View.GONE);
+                pinning.setVisibility(View.GONE);
+
+                autoSortingSwitch.setChecked(mAutoSorting);
+                forum.setText(R.string.main_forum_auto_sorting);
+
+                autoSortingSwitch.setOnCheckedChangeListener(this);
+                forum.setOnClickListener(this);
+            }
         }
 
         @Override
         public void onClick(@NonNull View v) {
             int position = getAdapterPosition();
-            if (position >= 0 && position < mLazyList.size()) {
+            if (position > 0 && position <= mLazyList.size()) {
                 if (visibility == v) {
-                    ACForumRaw raw = mLazyList.get(position);
+                    ACForumRaw raw = mLazyList.get(position - 1);
                     DB.setACForumVisibility(raw, !raw.getVisibility());
 
                     // Update UI
                     visibility.setActivated(raw.getVisibility());
 
                     mNeedUpdate = true;
-                } else if (forum == v) {
-                    ACForumRaw raw = mLazyList.get(position);
-                    ForumDialogHelper helper = new ForumDialogHelper(raw);
-                    AlertDialog dialog = new AlertDialog.Builder(SortForumsActivity.this)
-                            .setTitle(R.string.modify_forum)
-                            .setView(helper.getView())
-                            .setPositiveButton(android.R.string.ok, null)
-                            .show();
-                    helper.setDialog(dialog);
+                } else if (pinning == v) {
+                    List<ACForumRaw> changed = new ArrayList<>();
+                    ACForumRaw clicked = mLazyList.get(position - 1);
+                    boolean isClickedPinned = ForumAutoSortingUtils.isACForumPinned(clicked);
+
+                    ACForumRaw first = mLazyList.get(0);
+                    if (!isClickedPinned && ForumAutoSortingUtils.isACForumPinned(first)) {
+                        // unpin the first if it's been pinned already
+                        ForumAutoSortingUtils.unpinACForum(first);
+                        changed.add(first);
+                    }
+
+                    if (!isClickedPinned) {
+                        ForumAutoSortingUtils.pinACForum(clicked);
+                    } else {
+                        ForumAutoSortingUtils.unpinACForum(clicked);
+                    }
+                    changed.add(clicked);
+
+                    DB.updateACForum(changed);
+                    updateLazyList(false);
+                    mNeedUpdate = true;
+
+                    // don't know where the previous top will go, so update all the list
+                    mAdapter.notifyDataSetChanged();
+                }
+            } else if (position == 0) {
+                if (forum == v) {
+                    autoSortingSwitch.performClick();
                 }
             }
         }
@@ -545,42 +424,95 @@ public class SortForumsActivity extends TranslucentActivity {
         public View getSwipeableContainerView() {
             return swipeHandler;
         }
+
+        @Override
+        public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+            if (autoSortingSwitch == buttonView) {
+                mAutoSorting = isChecked;
+                Settings.putForumAutoSorting(isChecked);
+
+                // update the list to sort them according to the present setting
+                updateLazyList(false);
+                // the list could be dramatically different so update them all
+                mAdapter.notifyDataSetChanged();
+
+                // show guide
+                tryShowSecondGuide();
+
+                mNeedUpdate = true;
+            }
+        }
     }
 
     private class ForumAdapter extends RecyclerView.Adapter<ForumHolder>
             implements DraggableItemAdapter<ForumHolder>,
             SwipeableItemAdapter<ForumHolder> {
 
+        private static final long ID_SWITCH = -0xffL;
+
         @Override
         public ForumHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-            return new ForumHolder(getLayoutInflater().inflate(R.layout.item_forum_sort, parent, false));
+            return new ForumHolder(getLayoutInflater().inflate(R.layout.item_forum_sort, parent, false), viewType);
         }
 
         @Override
         public void onBindViewHolder(ForumHolder holder, int position) {
-            ACForumRaw raw = mLazyList.get(position);
-            holder.visibility.setActivated(raw.getVisibility());
-            holder.forum.setText(raw.getDisplayname());
+            if (position > 0) {
+                ACForumRaw raw = mLazyList.get(position - 1);
+                holder.visibility.setActivated(raw.getVisibility());
+                if (mAutoSorting) {
+                    holder.dragHandler.setVisibility(View.GONE);
+                    holder.pinning.setVisibility(View.VISIBLE);
+                    holder.pinning.setActivated(ForumAutoSortingUtils.isACForumPinned(raw));
+                } else {
+                    holder.pinning.setVisibility(View.GONE);
+                    holder.dragHandler.setVisibility(View.VISIBLE);
+                }
+
+                CharSequence name = mForumNames.get(position);
+                if (name == null) {
+                    if (raw.getDisplayname() == null) {
+                        name = "Forum";
+                    } else {
+                        name = Html.fromHtml(raw.getDisplayname());
+                    }
+                    mForumNames.put(position, name);
+                }
+                holder.forum.setText(name);
+            }
         }
 
         @Override
         public long getItemId(int position) {
-            return mLazyList.get(position).getId();
+            if (position > 0) {
+                return mLazyList.get(position - 1).getId();
+            } else {
+                return ID_SWITCH;
+            }
+        }
+
+        @Override
+        public int getItemViewType(int position) {
+            if (position == 0) {
+                return TYPE_SWITCH;
+            } else {
+                return TYPE_FORUM;
+            }
         }
 
         @Override
         public int getItemCount() {
-            return mLazyList.size();
+            return mLazyList.size() + 1;
         }
 
         @Override
         public boolean onCheckCanStartDrag(ForumHolder holder, int position, int x, int y) {
-            return ViewUtils.isViewUnder(holder.dragHandler, x, y, 0);
+            return position != 0 && ViewUtils.isViewUnder(holder.dragHandler, x, y, 0);
         }
 
         @Override
         public ItemDraggableRange onGetItemDraggableRange(ForumHolder holder, int position) {
-            return null;
+            return new ItemDraggableRange(1, mLazyList.size());
         }
 
         @Override
@@ -592,11 +524,11 @@ public class SortForumsActivity extends TranslucentActivity {
             List<ACForumRaw> changed = new ArrayList<>(Math.abs(fromPosition - toPosition) + 1);
             if (fromPosition < toPosition) {
                 for (int i = fromPosition; i <= toPosition; i++) {
-                    changed.add(mLazyList.get(i));
+                    changed.add(mLazyList.get(i - 1));
                 }
             } else {
                 for (int i = fromPosition; i >= toPosition; i--) {
-                    changed.add(mLazyList.get(i));
+                    changed.add(mLazyList.get(i - 1));
                 }
             }
 
@@ -621,7 +553,11 @@ public class SortForumsActivity extends TranslucentActivity {
 
         @Override
         public int onGetSwipeReactionType(ForumHolder holder, int position, int x, int y) {
-            return SwipeableItemConstants.REACTION_CAN_SWIPE_BOTH_H;
+            if (position == 0 || mLazyList.get(position - 1).getOfficial()) {
+                return SwipeableItemConstants.REACTION_CAN_NOT_SWIPE_ANY;
+            } else {
+                return SwipeableItemConstants.REACTION_CAN_SWIPE_BOTH_H;
+            }
         }
 
         @Override
@@ -661,60 +597,13 @@ public class SortForumsActivity extends TranslucentActivity {
             super.onPerformAction();
 
             final int position = mPosition;
-            final ACForumRaw raw = mLazyList.get(position);
+            final ACForumRaw raw = mLazyList.get(position - 1);
             if (raw != null) {
-                DB.removeACForum(mLazyList.get(position));
+                DB.removeACForum(mLazyList.get(position - 1));
                 updateLazyList(true);
                 mAdapter.notifyItemRemoved(position);
                 mNeedUpdate = true;
             }
-        }
-    }
-
-    private class ForumsListener implements NMBClient.Callback<List<ACForumGroup>> {
-
-        @Override
-        public void onSuccess(List<ACForumGroup> result) {
-            if (mProgressDialog != null) {
-                mProgressDialog.dismiss();
-                mProgressDialog = null;
-            }
-            mNMBRequest = null;
-
-            List<ACForum> list = new LinkedList<>();
-            for (ACForumGroup forumGroup : result) {
-                for (ACForum forum : forumGroup.forums) {
-                    list.add(forum);
-                }
-            }
-
-            DB.addACForums(list);
-            updateLazyList(false);
-            mAdapter.notifyDataSetChanged();
-
-            mNeedUpdate = true;
-        }
-
-        @Override
-        public void onFailure(Exception e) {
-            if (mProgressDialog != null) {
-                mProgressDialog.dismiss();
-                mProgressDialog = null;
-            }
-            mNMBRequest = null;
-
-            Toast.makeText(SortForumsActivity.this, R.string.refresh_forum_list_failed, Toast.LENGTH_SHORT).show();
-        }
-
-        @Override
-        public void onCancel() {
-            if (mProgressDialog != null) {
-                mProgressDialog.dismiss();
-                mProgressDialog = null;
-            }
-            mNMBRequest = null;
-
-            Log.d("TAG", "ForumsListener onCancelled");
         }
     }
 }

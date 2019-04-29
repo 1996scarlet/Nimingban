@@ -78,7 +78,7 @@ public class ACFeed extends Post {
             mUser = ACItemUtils.handleUser(Html.fromHtml(userid), getNMBPostId(), getNMBId());
         }
 
-        mContent = ACItemUtils.generateContent(content, "", title, name, email);
+        mContent = ACItemUtils.generateContent(content, "", title, name);
 
         if (!TextUtils.isEmpty(img)) {
             String ext2 = ext;
@@ -102,6 +102,11 @@ public class ACFeed extends Post {
     @Override
     public String getNMBId() {
         return id;
+    }
+
+    @Override
+    public String getNMBFid() {
+        return fid;
     }
 
     @Override

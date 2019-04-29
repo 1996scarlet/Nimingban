@@ -16,6 +16,8 @@
 
 package com.hippo.nimingban;
 
+import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.Application;
 import android.content.BroadcastReceiver;
@@ -25,6 +27,8 @@ import android.content.IntentFilter;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
+import android.os.AsyncTask;
+import android.os.Bundle;
 import android.os.Debug;
 import android.support.annotation.NonNull;
 import android.util.Log;
@@ -34,16 +38,20 @@ import com.hippo.conaco.Conaco;
 import com.hippo.drawable.ImageWrapper;
 import com.hippo.nimingban.client.NMBClient;
 import com.hippo.nimingban.client.NMBDns;
+import com.hippo.nimingban.client.NMBInterceptor;
 import com.hippo.nimingban.client.NMBRequest;
 import com.hippo.nimingban.client.ac.data.ACCdnPath;
+import com.hippo.nimingban.client.ac.data.ACForum;
+import com.hippo.nimingban.client.ac.data.ACForumGroup;
 import com.hippo.nimingban.client.data.ACSite;
-import com.hippo.nimingban.client.NMBInterceptor;
 import com.hippo.nimingban.network.HttpCookieDB;
 import com.hippo.nimingban.network.HttpCookieWithId;
 import com.hippo.nimingban.network.SimpleCookieStore;
+import com.hippo.nimingban.ui.BringToForegroundActivity;
 import com.hippo.nimingban.util.BitmapUtils;
 import com.hippo.nimingban.util.Crash;
 import com.hippo.nimingban.util.DB;
+import com.hippo.nimingban.util.ForumAutoSortingUtils;
 import com.hippo.nimingban.util.ReadableTime;
 import com.hippo.nimingban.util.ResImageGetter;
 import com.hippo.nimingban.util.Settings;
@@ -62,12 +70,19 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.ref.WeakReference;
 import java.net.HttpCookie;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import okhttp3.Call;
 import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 public final class NMBApplication extends Application
         implements Thread.UncaughtExceptionHandler, Messenger.Receiver, Runnable {
@@ -87,6 +102,8 @@ public final class NMBApplication extends Application
     private OkHttpClient mOkHttpClient;
 
     private boolean mConnectedWifi;
+
+    private List<WeakReference<Activity>> mActivities = new ArrayList<>();
 
     @Override
     public void onCreate() {
@@ -123,8 +140,36 @@ public final class NMBApplication extends Application
 
         // Theme
         setTheme(Settings.getDarkTheme() ? R.style.AppTheme_Dark : R.style.AppTheme);
-
         Messenger.getInstance().register(Constants.MESSENGER_ID_CHANGE_THEME, this);
+
+        registerActivityLifecycleCallbacks(new ActivityLifecycleCallbacks() {
+            @Override
+            public void onActivityCreated(Activity activity, Bundle savedInstanceState) {
+                mActivities.add(new WeakReference<>(activity));
+            }
+            @Override
+            public void onActivityDestroyed(Activity activity) {
+                Iterator<WeakReference<Activity>> iterator = mActivities.iterator();
+                while (iterator.hasNext()) {
+                    WeakReference<Activity> reference = iterator.next();
+                    Activity a = reference.get();
+                    // Remove current activity and null
+                    if (a == null || a == activity) {
+                        iterator.remove();
+                    }
+                }
+            }
+            @Override
+            public void onActivityStarted(Activity activity) {}
+            @Override
+            public void onActivityResumed(Activity activity) {}
+            @Override
+            public void onActivityPaused(Activity activity) {}
+            @Override
+            public void onActivityStopped(Activity activity) {}
+            @Override
+            public void onActivitySaveInstanceState(Activity activity, Bundle outState) {}
+        });
 
         try {
             update();
@@ -141,6 +186,15 @@ public final class NMBApplication extends Application
 
     private void start() {
         updateACCdnPath();
+        updateACForums();
+        updateACHost();
+
+        long lastForumAging = Settings.getLastForumAging();
+        long time = System.currentTimeMillis();
+        if (time - lastForumAging > 24 * 60 * 60 * 1000) { // 24 hr * 60 min * 60 sec * 1000 milli
+            ForumAutoSortingUtils.ageACForumFrequency();
+            Settings.setLastForumAging(time);
+        }
     }
 
     private void readACCdnPathFromFile() {
@@ -197,6 +251,67 @@ public final class NMBApplication extends Application
         getNMBClient(this).execute(request);
     }
 
+    private void updateACForums() {
+        NMBRequest request = new NMBRequest();
+        request.setSite(ACSite.getInstance());
+        request.setMethod(NMBClient.METHOD_GET_FORUM_LIST);
+        request.setCallback(new NMBClient.Callback<List<ACForumGroup>>(){
+            @Override
+            public void onSuccess(List<ACForumGroup> result) {
+                List<ACForum> list = new LinkedList<>();
+                for (ACForumGroup forumGroup : result) {
+                    list.addAll(forumGroup.forums);
+                }
+                DB.setACForums(list);
+            }
+            @Override
+            public void onFailure(Exception e) { }
+            @Override
+            public void onCancel() { }
+        });
+        getNMBClient(this).execute(request);
+    }
+
+    @SuppressLint("StaticFieldLeak")
+    private void updateACHost() {
+        getNMBClient(this).execute(new AsyncTask<Object, Object, String>() {
+            @Override
+            protected String doInBackground(Object... objects) {
+                OkHttpClient client = getOkHttpClient(NMBApplication.this);
+                Request request = new Request.Builder().url("http://adnmb.com").build();
+                Call call = client.newCall(request);
+                try {
+                    Response response = call.execute();
+                    String url = response.request().url().toString();
+                    response.close();
+
+                    // Find third '/', make url like http://adnmb.com
+                    int count = 0;
+                    for (int i = 0, n = url.length(); i < n; i++) {
+                        if (url.charAt(i) == '/') {
+                            count++;
+                        }
+                        if (count == 3) {
+                            url = url.substring(0, i);
+                            break;
+                        }
+                    }
+
+                    return url;
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    return null;
+                }
+            }
+
+            @Override
+            protected void onPostExecute(String host) {
+                Log.d(TAG, "ac host = " + host);
+                Settings.putAcHost(host);
+            }
+        });
+    }
+
     private void update() throws PackageManager.NameNotFoundException {
         int oldVersionCode = Settings.getVersionCode();
         PackageInfo pi = getPackageManager().getPackageInfo(getPackageName(), PackageManager.GET_ACTIVITIES);
@@ -242,6 +357,17 @@ public final class NMBApplication extends Application
             newCookie.setVersion(oldCookie.getVersion());
 
             cookieStore.add(url, newCookie);
+        }
+    }
+
+    public void bringActivitiesToForeground() {
+        int i = mActivities.size();
+        while (--i >= 0) {
+            Activity activity = mActivities.get(i).get();
+            if (activity != null && !"com.hippo.nimingban.wxapi.WXEntryActivity".equals(activity.getClass().getName())) {
+                Intent intent = new Intent(activity, BringToForegroundActivity.class);
+                activity.startActivity(intent);
+            }
         }
     }
 

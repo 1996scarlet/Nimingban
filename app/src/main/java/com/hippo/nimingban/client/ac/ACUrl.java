@@ -16,6 +16,8 @@
 
 package com.hippo.nimingban.client.ac;
 
+import com.hippo.nimingban.util.Settings;
+
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 
@@ -23,64 +25,81 @@ public class ACUrl {
 
     public static final String APP_ID = "nimingban";
 
-    public static final String DOMAIN = "h.nimingban.com";
+    public static final String DOMAIN = "adnmb1.com";
 
-    public static final String HOST = "https://" + DOMAIN;
+    public static final String API_POST_LIST = "/Api/showf?appid=" + APP_ID;
 
-    public static final String API_POST_LIST = HOST + "/Api/showf?appid=" + APP_ID;
+    public static final String API_TIME_LINE = "/Api/timeline?appid=" + APP_ID;
 
-    public static final String API_POST = HOST + "/Api/thread?appid=" + APP_ID;
+    public static final String API_POST = "/Api/thread?appid=" + APP_ID;
 
-    public static final String API_REFERENCE = HOST + "/Home/Forum/ref?appid=" + APP_ID;
+    public static final String API_REFERENCE = "/Home/Forum/ref?appid=" + APP_ID;
 
-    public static final String API_FEED = HOST + "/Api/feed?appid=" + APP_ID;
+    public static final String API_FEED = "/Api/feed?appid=" + APP_ID;
 
-    public static final String API_ADD_FEED = HOST + "/Api/addFeed?appid=" + APP_ID;
+    public static final String API_ADD_FEED = "/Api/addFeed?appid=" + APP_ID;
 
-    public static final String API_DEL_FEED = HOST + "/Api/delFeed?appid=" + APP_ID;
+    public static final String API_DEL_FEED = "/Api/delFeed?appid=" + APP_ID;
 
-    public static final String API_CREATE_POST = HOST + "/Home/Forum/doPostThread.html?appid=" + APP_ID;
+    public static final String API_CREATE_POST = "/Home/Forum/doPostThread.html?appid=" + APP_ID;
 
-    public static final String API_GET_COOKIE = HOST + "/Api/getCookie?appid=" + APP_ID;
+    public static final String API_GET_COOKIE = "/Api/getCookie?appid=" + APP_ID;
 
-    //public static final String API_GET_CDN_PATH = HOST + "/Api/getCdnPath?appid=" + APP_ID;
-    public static final String API_GET_CDN_PATH = "http://nimingban.herokuapp.com/get_image_cdn_path";
+    public static final String API_GET_CDN_PATH = "/Api/getCdnPath?appid=" + APP_ID;
 
-    public static final String API_GET_FORUM_LIST = HOST + "/Api/getForumList?appid=" + APP_ID;
+    public static final String API_GET_FORUM_LIST = "/Api/getForumList?appid=" + APP_ID;
 
-    public static final String API_REPLY = HOST + "/Home/Forum/doReplyThread.html?appid=" + APP_ID;
+    public static final String API_REPLY = "/Home/Forum/doReplyThread.html?appid=" + APP_ID;
 
     public static final String API_COMMON_POSTS = "http://nimingban.herokuapp.com/common_posts";
 
-    public static final String API_SEARCH = HOST + "/Api/search?appid=" + APP_ID;
+    public static final String API_SEARCH = "/Api/search?appid=" + APP_ID;
+
+    public static final String FORUM_ID_TIME_LINE = "-1";
+
+    public static String getHost() {
+        if (Settings.getEnableCustomizedAcHost()) {
+            return Settings.getCustomizedAcHost();
+        } else {
+            return Settings.getAcHost();
+        }
+    }
 
     public static String getPostListUrl(String forum, int page) {
-        return API_POST_LIST + "&id=" + forum + "&page=" + (page + 1);
+        if (FORUM_ID_TIME_LINE.equals(forum)) {
+            return getTimeLineUrl(page);
+        } else {
+            return getHost() + API_POST_LIST + "&id=" + forum + "&page=" + (page + 1);
+        }
+    }
+
+    public static String getTimeLineUrl(int page) {
+        return getHost() + API_TIME_LINE + "&page=" + (page + 1);
     }
 
     public static String getPostUrl(String id, int page) {
-        return API_POST + "&id=" + id + "&page=" + (page + 1);
+        return getHost() + API_POST + "&id=" + id + "&page=" + (page + 1);
     }
 
     public static String getReferenceUrl(String id) {
-        return API_REFERENCE + "&id=" + id;
+        return getHost() + API_REFERENCE + "&id=" + id;
     }
 
     public static String getFeedUrl(String uuid, int page) {
-        return API_FEED + "&uuid=" + uuid + "&page=" + (page + 1);
+        return getHost() + API_FEED + "&uuid=" + uuid + "&page=" + (page + 1);
     }
 
     public static String getAddFeedUrl(String uuid, String tid) {
-        return API_ADD_FEED + "&uuid=" + uuid + "&tid=" + tid;
+        return getHost() + API_ADD_FEED + "&uuid=" + uuid + "&tid=" + tid;
     }
 
     public static String getDelFeedUrl(String uuid, String tid) {
-        return API_DEL_FEED + "&uuid=" + uuid + "&tid=" + tid;
+        return getHost() + API_DEL_FEED + "&uuid=" + uuid + "&tid=" + tid;
     }
 
     public static String getBrowsablePostUrl(String id, int page) {
         StringBuilder sb = new StringBuilder();
-        sb.append(HOST).append("/t/").append(id);
+        sb.append(getHost()).append("/t/").append(id);
         if (page != 0) {
             sb.append("&page=").append(page + 1);
         }
@@ -92,6 +111,6 @@ public class ACUrl {
     }
 
     public static String getSearchUrl(String keyword, int page) throws UnsupportedEncodingException {
-        return API_SEARCH + "&q=" + URLEncoder.encode(keyword, "UTF-8") + "&pageNo=" + (page + 1);
+        return getHost() + API_SEARCH + "&q=" + URLEncoder.encode(keyword, "UTF-8") + "&pageNo=" + (page + 1);
     }
 }

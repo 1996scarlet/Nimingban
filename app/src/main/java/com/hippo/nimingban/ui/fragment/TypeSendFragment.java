@@ -71,17 +71,20 @@ import com.hippo.nimingban.client.ac.data.ACReplyStruct;
 import com.hippo.nimingban.client.data.ACSite;
 import com.hippo.nimingban.client.data.DisplayForum;
 import com.hippo.nimingban.client.data.Site;
+import com.hippo.nimingban.content.UniversalProvider;
 import com.hippo.nimingban.drawable.RoundSideDrawable;
 import com.hippo.nimingban.network.SimpleCookieStore;
 import com.hippo.nimingban.ui.DoodleActivity;
 import com.hippo.nimingban.ui.DraftActivity;
 import com.hippo.nimingban.ui.GalleryActivity2;
+import com.hippo.nimingban.ui.QRCodeScanActivity;
 import com.hippo.nimingban.util.BitmapUtils;
 import com.hippo.nimingban.util.DB;
+import com.hippo.nimingban.util.OpenUrlHelper;
 import com.hippo.nimingban.util.ReadableTime;
 import com.hippo.nimingban.util.Settings;
-import com.hippo.nimingban.widget.NMBEditText;
 import com.hippo.nimingban.widget.FontTextView;
+import com.hippo.nimingban.widget.NMBEditText;
 import com.hippo.ripple.Ripple;
 import com.hippo.util.DrawableManager;
 import com.hippo.util.ExceptionUtils;
@@ -92,6 +95,9 @@ import com.hippo.yorozuya.LayoutUtils;
 import com.hippo.yorozuya.Messenger;
 import com.hippo.yorozuya.ResourcesUtils;
 import com.hippo.yorozuya.SimpleHandler;
+import com.tencent.mm.opensdk.modelbiz.WXLaunchMiniProgram;
+import com.tencent.mm.opensdk.openapi.IWXAPI;
+import com.tencent.mm.opensdk.openapi.WXAPIFactory;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -177,6 +183,8 @@ public final class TypeSendFragment extends BaseFragment implements View.OnClick
 
     private Callback mCallback;
 
+    private IWXAPI mWxApi;
+
     public void setCallback(Callback callback) {
         mCallback = callback;
     }
@@ -236,7 +244,8 @@ public final class TypeSendFragment extends BaseFragment implements View.OnClick
 
     private void prepareForCreatePost() {
         // Get all forums
-        mForums = DB.getACForums(false);
+        boolean sorting = Settings.getForumAutoSorting();
+        mForums = DB.getACForums(false, sorting);
         if (mForums.size() == 0) {
             // TODO error
         } else {
@@ -428,6 +437,16 @@ public final class TypeSendFragment extends BaseFragment implements View.OnClick
 
         // Cancel FLAG_ALT_FOCUSABLE_IM
         getActivity().getWindow().clearFlags(WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM);
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+
+        if (mWxApi != null) {
+            mWxApi.detach();
+            mWxApi = null;
+        }
     }
 
     /**
@@ -638,7 +657,7 @@ public final class TypeSendFragment extends BaseFragment implements View.OnClick
         SimpleCookieStore cookieStore = NMBApplication.getSimpleCookieStore(getContext());
         URL url;
         try {
-            url = new URL(ACUrl.HOST);
+            url = new URL(ACUrl.getHost());
         } catch (MalformedURLException e) {
             // WTF ?
             return true;
@@ -741,24 +760,16 @@ public final class TypeSendFragment extends BaseFragment implements View.OnClick
         });
     }
 
-    private void getCookies() {
-        showProgressDialog(R.string.getting_cookies);
-
-        NMBRequest request = new NMBRequest();
-        mNMBRequest = request;
-        request.setSite(mSite);
-        request.setMethod(NMBClient.METHOD_GET_COOKIE);
-        request.setCallback(new GetCookieListener());
-        mNMBClient.execute(request);
-    }
-
     private void tryGettingCookies() {
         DialogInterface.OnClickListener listener = new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 switch (which) {
                     case DialogInterface.BUTTON_POSITIVE:
-                        getCookies();
+                        showRegisterDialog();
+                        break;
+                    case DialogInterface.BUTTON_NEGATIVE:
+                        showAddCookieDialog();
                         break;
                     case DialogInterface.BUTTON_NEUTRAL:
                         doAction();
@@ -769,9 +780,73 @@ public final class TypeSendFragment extends BaseFragment implements View.OnClick
 
         new AlertDialog.Builder(getContext()).setTitle(R.string.no_cookies)
                 .setMessage(R.string.no_cookies_ac)
-                .setPositiveButton(android.R.string.ok, listener)
-                .setNegativeButton(android.R.string.cancel, listener)
+                .setPositiveButton(R.string.register, listener)
+                .setNegativeButton(R.string.add_cookies, listener)
                 .setNeutralButton(R.string.i_dont_care, listener).show();
+    }
+
+    private void showRegisterDialog() {
+        DialogInterface.OnClickListener listener = new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                switch (which) {
+                    case 0:
+                        // Web
+                        String url = "http://adnmb.com/Member/User/Index/sendRegister.html";
+                        OpenUrlHelper.openUrl(getActivity(), url, false);
+                        break;
+                    case 1:
+                        // WeChat
+                        if (mWxApi == null) {
+                            String appId = "wxe59db8095c5f16de";
+                            mWxApi = WXAPIFactory.createWXAPI(getActivity(), appId);
+                        }
+
+                        WXLaunchMiniProgram.Req req = new WXLaunchMiniProgram.Req();
+                        req.userName = "gh_f8c1b9909e51";
+                        req.path = "pages/index/index?mode=reg";
+                        req.miniprogramType = WXLaunchMiniProgram.Req.MINIPTOGRAM_TYPE_RELEASE;
+                        mWxApi.sendReq(req);
+                        break;
+                }
+            }
+        };
+
+        new AlertDialog.Builder(getActivity())
+                .setItems(R.array.register_methods, listener)
+                .show();
+    }
+
+    private void showAddCookieDialog() {
+        DialogInterface.OnClickListener listener = new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                switch (which) {
+                    case 0:
+                        // Scan
+                        Intent intent = new Intent(getActivity(), QRCodeScanActivity.class);
+                        startActivity(intent);
+                        break;
+                    case 1:
+                        // WeChat
+                        if (mWxApi == null) {
+                            String appId = "wxe59db8095c5f16de";
+                            mWxApi = WXAPIFactory.createWXAPI(getActivity(), appId);
+                        }
+
+                        WXLaunchMiniProgram.Req req = new WXLaunchMiniProgram.Req();
+                        req.userName = "gh_f8c1b9909e51";
+                        req.path = "pages/index/index?mode=cookie";
+                        req.miniprogramType = WXLaunchMiniProgram.Req.MINIPTOGRAM_TYPE_RELEASE;
+                        mWxApi.sendReq(req);
+                        break;
+                }
+            }
+        };
+
+        new AlertDialog.Builder(getActivity())
+                .setItems(R.array.add_cookies, listener)
+                .show();
     }
 
     private void showImageDialog() {
@@ -822,7 +897,7 @@ public final class TypeSendFragment extends BaseFragment implements View.OnClick
                         File temp = new File(dir, ReadableTime.getFilenamableTime(System.currentTimeMillis()) + ".jpg");
                         mCameraImageUri = Uri.fromFile(temp);
                         Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-                        cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, mCameraImageUri);
+                        cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, UniversalProvider.buildUri(temp.getPath()));
                         startActivityForResult(cameraIntent, REQUEST_CODE_CAMERA);
                         break;
                 }

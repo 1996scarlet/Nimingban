@@ -78,9 +78,12 @@ import com.hippo.nimingban.client.data.Forum;
 import com.hippo.nimingban.client.data.Post;
 import com.hippo.nimingban.client.data.Reply;
 import com.hippo.nimingban.client.data.UpdateStatus;
+import com.hippo.nimingban.dao.ACForumRaw;
 import com.hippo.nimingban.util.Crash;
 import com.hippo.nimingban.util.DB;
+import com.hippo.nimingban.util.ForumAutoSortingUtils;
 import com.hippo.nimingban.util.LinkMovementMethod2;
+import com.hippo.nimingban.util.PostIgnoreUtils;
 import com.hippo.nimingban.util.ReadableTime;
 import com.hippo.nimingban.util.Settings;
 import com.hippo.nimingban.widget.ContentLayout;
@@ -110,9 +113,11 @@ import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import jp.wasabeef.recyclerview.animators.SlideInUpAnimator;
 
@@ -130,6 +135,7 @@ public final class ListActivity extends AbsActivity
 
     private NMBClient mNMBClient;
 
+    private Toolbar mToolbar;
     private DrawerLayout mDrawerLayout;
     private ContentLayout mContentLayout;
     private EasyRecyclerView mRecyclerView;
@@ -138,8 +144,8 @@ public final class ListActivity extends AbsActivity
     private ActionBarDrawerToggle mDrawerToggle;
 
     private MenuItem mRule;
+    private MenuItem mNotice;
     private MenuItem mCreatePost;
-    private MenuItem mRefresh;
     private MenuItem mSortForumsMenu;
 
     private @Nullable Forum mCurrentForum;
@@ -158,6 +164,8 @@ public final class ListActivity extends AbsActivity
 
     private List<WeakReference<ListHolder>> mListHolderList = new LinkedList<>();
 
+    private Map<String, CharSequence> mForumNames = new HashMap<>();
+
     @Override
     protected int getLightThemeResId() {
         return Settings.getColorStatusBar() ? R.style.NormalActivity : R.style.NormalActivity_NoStatus;
@@ -175,7 +183,7 @@ public final class ListActivity extends AbsActivity
 
         mNMBClient = NMBApplication.getNMBClient(this);
 
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        mToolbar = (Toolbar) findViewById(R.id.toolbar);
         mDrawerLayout = (DrawerLayout) findViewById(R.id.drawer_layout);
         mContentLayout = (ContentLayout) mDrawerLayout.findViewById(R.id.content_layout);
         mRecyclerView = mContentLayout.getRecyclerView();
@@ -190,14 +198,16 @@ public final class ListActivity extends AbsActivity
                 return true;
             }
         });
-        toolbar.setOnTouchListener(new View.OnTouchListener() {
+        mToolbar.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 gestureDetector.onTouchEvent(event);
                 return true;
             }
         });
-        setSupportActionBar(toolbar);
+        setSupportActionBar(mToolbar);
+        // I like hardcode
+        mToolbar.setSubtitle("A岛·adnmb.com");
 
         mDrawerToggle = new ActionBarDrawerToggle(this, mDrawerLayout,
                 R.string.drawer_open, R.string.drawer_close) {
@@ -222,8 +232,8 @@ public final class ListActivity extends AbsActivity
                 }
                 if (mRightDrawer == view) {
                     setMenuItemVisible(mRule, true);
+                    setMenuItemVisible(mNotice, true);
                     setMenuItemVisible(mCreatePost, true);
-                    setMenuItemVisible(mRefresh, true);
                     setMenuItemVisible(mSortForumsMenu, false);
                 }
             }
@@ -235,8 +245,8 @@ public final class ListActivity extends AbsActivity
                 }
                 if (mRightDrawer == view) {
                     setMenuItemVisible(mRule, false);
+                    setMenuItemVisible(mNotice, false);
                     setMenuItemVisible(mCreatePost, false);
-                    setMenuItemVisible(mRefresh, false);
                     setMenuItemVisible(mSortForumsMenu, true);
                 }
             }
@@ -268,6 +278,13 @@ public final class ListActivity extends AbsActivity
                 this, ResourcesUtils.getAttrBoolean(this, R.attr.dark)));
         mRecyclerView.setDrawSelectorOnTop(true);
         mRecyclerView.setOnItemClickListener(new ClickPostListener());
+        mRecyclerView.setOnItemLongClickListener(new EasyRecyclerView.OnItemLongClickListener() {
+            @Override
+            public boolean onItemLongClick(EasyRecyclerView parent, View view, int position, long id) {
+                showIgnorePostDialog(position);
+                return true;
+            }
+        });
         mRecyclerView.hasFixedSize();
         mRecyclerView.setClipToPadding(false);
         mOnScrollListener = new RecyclerView.OnScrollListener() {
@@ -397,6 +414,43 @@ public final class ListActivity extends AbsActivity
                 iterator.remove();
             }
         }
+    }
+
+    private void showIgnorePostDialog(final int position) {
+        final Post post = mPostHelper.getDataAt(position);
+
+        DialogInterface.OnClickListener listener = new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                switch (i) {
+                    case 0:
+                        Intent intent = new Intent(ListActivity.this, TypeSendActivity.class);
+                        intent.setAction(TypeSendActivity.ACTION_REPORT);
+                        intent.putExtra(TypeSendActivity.KEY_SITE, mCurrentForum.getNMBSite().getId());
+                        intent.putExtra(TypeSendActivity.KEY_ID, mCurrentForum.getNMBSite().getReportForumId());
+                        intent.putExtra(TypeSendActivity.KEY_TEXT, ">>No." + post.getNMBPostId() + "\n");
+                        startActivity(intent);
+                        break;
+                    case 1:
+                        new AlertDialog.Builder(ListActivity.this)
+                                .setTitle(R.string.ignore_post_confirm_title)
+                                .setMessage(Settings.getEnableStrictIgnoreMode() ? R.string.ignore_post_confirm_message_strict : R.string.ignore_post_confirm_message)
+                                .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                                    @Override
+                                    public void onClick(DialogInterface dialogInterface, int i) {
+                                        PostIgnoreUtils.INSTANCE.putIgnoredPost(post.getNMBPostId());
+                                        mPostHelper.removeAt(position);
+                                    }
+                                })
+                                .setNegativeButton(android.R.string.no, null)
+                                .show();
+                        break;
+                }
+            }
+        };
+
+        new AlertDialog.Builder(ListActivity.this)
+                .setTitle("No." + post.getNMBPostId()).setItems(R.array.post_dialog, listener).show();
     }
 
     @Override
@@ -588,7 +642,11 @@ public final class ListActivity extends AbsActivity
         mNMBClient.execute(request);
 
         // Get Notice
-        request = new NMBRequest();
+        getNotice(false);
+    }
+
+    private void getNotice(final boolean forceDisplay) {
+        NMBRequest request = new NMBRequest();
         mNoticeRequest = request;
         request.setSite(ACSite.getInstance());
         request.setMethod(NMBClient.METHOD_NOTICE);
@@ -605,17 +663,17 @@ public final class ListActivity extends AbsActivity
                 }
                 long oldDate = Settings.getNoticeDate();
                 final long newDate = result.date;
-                if (newDate <= oldDate) {
+                if (newDate <= oldDate && !forceDisplay) {
                     return;
                 }
 
                 final CheckBoxDialogBuilder builder = new CheckBoxDialogBuilder(
-                        ListActivity.this, Html.fromHtml(result.content), getString(R.string.get_it), false);
+                        ListActivity.this, Html.fromHtml(result.content), getString(R.string.get_it), !forceDisplay, false);
                 Dialog dialog = builder.setTitle(R.string.notice).setOnDismissListener(
                         new DialogInterface.OnDismissListener() {
                             @Override
                             public void onDismiss(DialogInterface dialog) {
-                                if (builder.isChecked()) {
+                                if (builder.isShowCheckbox() && builder.isChecked()) {
                                     Settings.putNoticeDate(newDate);
                                 }
                             }
@@ -643,11 +701,13 @@ public final class ListActivity extends AbsActivity
         mCurrentForum = forum;
         mRightDrawer.setActivatedForum(forum);
         updateTitleByForum(mCurrentForum);
+        ForumAutoSortingUtils.addACForumFrequency(forum);
     }
 
     private void updateForums(boolean firstTime) {
         Forum currentForum = mCurrentForum;
-        List<DisplayForum> forums = DB.getACForums(true); // TODO DB.getForums
+        boolean sorting = Settings.getForumAutoSorting();
+        List<DisplayForum> forums = DB.getACForums(true, sorting); // TODO DB.getForums
         mRightDrawer.setForums(forums);
 
         // Try to find the same forum
@@ -746,19 +806,19 @@ public final class ListActivity extends AbsActivity
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.activity_list, menu);
         mRule = menu.findItem(R.id.action_rule);
+        mNotice = menu.findItem(R.id.action_notice);
         mCreatePost = menu.findItem(R.id.action_create_post);
-        mRefresh = menu.findItem(R.id.action_refresh);
         mSortForumsMenu = menu.findItem(R.id.action_sort_forums);
 
         if (mDrawerLayout.isDrawerOpen(Gravity.RIGHT)) {
             mRule.setVisible(false);
+            mNotice.setVisible(false);
             mCreatePost.setVisible(false);
-            mRefresh.setVisible(false);
             mSortForumsMenu.setVisible(true);
         } else {
             mRule.setVisible(true);
+            mNotice.setVisible(true);
             mCreatePost.setVisible(true);
-            mRefresh.setVisible(true);
             mSortForumsMenu.setVisible(false);
         }
 
@@ -791,7 +851,7 @@ public final class ListActivity extends AbsActivity
                 // It might be relative path
                 try {
                     // Use absolute url
-                    absoluteUrl = new URL(new URL(ACUrl.HOST), url);
+                    absoluteUrl = new URL(new URL(ACUrl.getHost()), url);
                     int start = spannable.getSpanStart(urlSpan);
                     int end = spannable.getSpanEnd(urlSpan);
                     spannable.removeSpan(urlSpan);
@@ -828,6 +888,10 @@ public final class ListActivity extends AbsActivity
                     new AlertDialog.Builder(this).setTitle(R.string.rule).setView(view).show();
                 }
                 return true;
+            case R.id.action_notice:
+                if (mCurrentForum != null)
+                    getNotice(true);
+                return true;
             case R.id.action_create_post:
                 if (mCurrentForum != null) {
                     intent = new Intent(this, TypeSendActivity.class);
@@ -854,7 +918,7 @@ public final class ListActivity extends AbsActivity
         if (forum != null) {
             setTitle(forum.getNMBDisplayname());
         } else {
-            setTitle(getString(R.string.app_name));
+            setTitle(null);
         }
     }
 
@@ -941,7 +1005,7 @@ public final class ListActivity extends AbsActivity
                 Intent intent = new Intent(ListActivity.this, PostActivity.class);
                 intent.setAction(PostActivity.ACTION_SITE_REPLY_ID);
                 intent.putExtra(PostActivity.KEY_SITE, ACSite.getInstance().getId());
-                intent.putExtra(PostActivity.KEY_ID, Integer.toString(MathUtils.random(1, 6666667))); // TODO how to get the max id
+                intent.putExtra(PostActivity.KEY_ID, Integer.toString(MathUtils.random(1, 16000000))); // TODO how to get the max id
                 startActivity(intent);
                 mDialog.dismiss();
                 return;
@@ -960,6 +1024,11 @@ public final class ListActivity extends AbsActivity
                 startActivity(intent);
                 mDialog.dismiss();
             } else if (mNeutral == v) {
+                if (!TextUtils.isDigitsOnly(keyword)) {
+                    Toast.makeText(ListActivity.this, R.string.invalid_post_id, Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
                 Intent intent = new Intent(ListActivity.this, PostActivity.class);
                 intent.setAction(PostActivity.ACTION_SITE_REPLY_ID);
                 intent.putExtra(PostActivity.KEY_SITE, ACSite.getInstance().getId());
@@ -1087,7 +1156,22 @@ public final class ListActivity extends AbsActivity
         public void onBindViewHolder(ListHolder holder, int position) {
             Post post = mPostHelper.getDataAt(position);
             holder.leftText.setText(post.getNMBDisplayUsername());
-            holder.centerText.setText("No." + post.getNMBId());
+            ACForumRaw forum = DB.getACForumForForumid(post.getNMBFid());
+            if (forum != null) {
+                String displayName = forum.getDisplayname();
+                CharSequence name = mForumNames.get(displayName);
+                if (name == null) {
+                    if (displayName == null) {
+                        name = "Forum";
+                    } else {
+                        name = Html.fromHtml(displayName);
+                    }
+                    mForumNames.put(displayName, name);
+                }
+                holder.centerText.setText(name);
+            } else {
+                holder.centerText.setText("No." + post.getNMBId());
+            }
             holder.rightText.setText(ReadableTime.getDisplayTime(post.getNMBTime()));
             holder.content.setText(post.getNMBDisplayContent());
             holder.bottomText.setText(post.getNMBReplyDisplayCount());
@@ -1205,6 +1289,16 @@ public final class ListActivity extends AbsActivity
         }
 
         @Override
+        protected boolean shouldRemoveDuplications() {
+            return true;
+        }
+
+        @Override
+        protected boolean isTheSame(Post d1, Post d2) {
+            return ObjectUtils.equal(d1.getNMBId(), d2.getNMBId());
+        }
+
+        @Override
         protected void getPageData(int taskId, int type, int page) {
             if (mNMBRequest != null) {
                 mNMBRequest.cancel();
@@ -1252,6 +1346,14 @@ public final class ListActivity extends AbsActivity
                     mPostHelper.setPages(mTaskPage);
                     mPostHelper.onGetEmptyData(mTaskId);
                 } else {
+                    // Remove ignored posts
+                    Iterator<Post> postIterator = result.iterator();
+                    while (postIterator.hasNext()) {
+                        Post post = postIterator.next();
+                        if (PostIgnoreUtils.INSTANCE.checkPostIgnored(post.getNMBPostId()))
+                            postIterator.remove();
+                    }
+
                     mPostHelper.setPages(Integer.MAX_VALUE);
                     mPostHelper.onGetPageData(mTaskId, result);
                 }

@@ -16,6 +16,7 @@
 
 package com.hippo.nimingban.ui;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.app.Dialog;
@@ -38,21 +39,19 @@ import android.preference.Preference;
 import android.preference.PreferenceFragment;
 import android.support.annotation.NonNull;
 import android.support.annotation.StringRes;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.text.TextUtils;
 import android.view.Gravity;
-import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.widget.EditText;
-import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.PopupWindow;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import com.alibaba.fastjson.JSON;
 import com.hippo.nimingban.Constants;
 import com.hippo.nimingban.NMBAppConfig;
@@ -62,9 +61,11 @@ import com.hippo.nimingban.client.data.ACSite;
 import com.hippo.nimingban.network.SimpleCookieStore;
 import com.hippo.nimingban.network.TransportableHttpCookie;
 import com.hippo.nimingban.service.DaDiaoService;
+import com.hippo.nimingban.ui.fragment.PrettyPreferenceActivity;
 import com.hippo.nimingban.util.CountDownTimerEx;
 import com.hippo.nimingban.util.LinkMovementMethod2;
 import com.hippo.nimingban.util.OpenUrlHelper;
+import com.hippo.nimingban.util.PostIgnoreUtils;
 import com.hippo.nimingban.util.ReadableTime;
 import com.hippo.nimingban.util.Settings;
 import com.hippo.nimingban.widget.FontTextView;
@@ -82,13 +83,14 @@ import com.hippo.yorozuya.LayoutUtils;
 import com.hippo.yorozuya.MathUtils;
 import com.hippo.yorozuya.Messenger;
 import com.hippo.yorozuya.NumberUtils;
-
+import com.tencent.mm.opensdk.modelbiz.WXLaunchMiniProgram;
+import com.tencent.mm.opensdk.openapi.IWXAPI;
+import com.tencent.mm.opensdk.openapi.WXAPIFactory;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Field;
 import java.net.HttpCookie;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -96,9 +98,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class SettingsActivity extends AbsPreferenceActivity {
+public class SettingsActivity extends PrettyPreferenceActivity
+        implements ActivityCompat.OnRequestPermissionsResultCallback {
 
     private static final int REQUEST_CODE_FRAGMENT = 0;
+    private static final int REQUEST_CODE_CAMERA = 0;
 
     private static final String[] ENTRY_FRAGMENTS = {
             DisplayFragment.class.getName(),
@@ -116,80 +120,10 @@ public class SettingsActivity extends AbsPreferenceActivity {
         return R.style.AppTheme_Dark;
     }
 
-    private class FakeLayoutInflater extends LayoutInflater {
-
-        private LayoutInflater mInflater;
-
-        protected FakeLayoutInflater(LayoutInflater inflater) {
-            super(null);
-            mInflater = inflater;
-        }
-
-        @Override
-        public LayoutInflater cloneInContext(Context newContext) {
-            return null;
-        }
-
-        @Override
-        public View inflate(int resource, ViewGroup root, boolean attachToRoot) {
-            return mInflater.inflate(R.layout.item_preference_header, root, attachToRoot);
-        }
-    }
-
-    private void replaceHeaderLayoutResId() {
-        try {
-            ListAdapter adapter = getListAdapter();
-            Class headerAdapterClazz = Class.forName("android.preference.PreferenceActivity$HeaderAdapter");
-            if (!headerAdapterClazz.isInstance(adapter)) {
-                return;
-            }
-
-            boolean ok = false;
-
-            try {
-                Field field = headerAdapterClazz.getDeclaredField("mLayoutResId");
-                field.setAccessible(true);
-                field.setInt(adapter, R.layout.item_preference_header);
-
-                ok = true;
-            } catch (IllegalAccessException e) {
-                e.printStackTrace();
-            } catch (NoSuchFieldException e) {
-                e.printStackTrace();
-            }
-
-            if (!ok) {
-                try {
-                    Field field = headerAdapterClazz.getDeclaredField("mInflater");
-                    field.setAccessible(true);
-                    field.set(adapter, new FakeLayoutInflater((LayoutInflater) field.get(adapter)));
-
-                    ok = true;
-                } catch (IllegalAccessException e) {
-                    e.printStackTrace();
-                } catch (NoSuchFieldException e) {
-                    e.printStackTrace();
-                } catch (ClassCastException e) {
-                    e.printStackTrace();
-                }
-            }
-
-            if (ok) {
-                getListView().setDivider(getResources().getDrawable(R.drawable.transparent));
-                getListView().setDividerHeight(0);
-            }
-
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-    }
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setActionBarUpIndicator(DrawableManager.getDrawable(this, R.drawable.v_arrow_left_dark_x24));
-
-        replaceHeaderLayoutResId();
     }
 
     @Override
@@ -236,6 +170,21 @@ public class SettingsActivity extends AbsPreferenceActivity {
             setResult(resultCode);
         } else {
             super.onActivityResult(requestCode, resultCode, data);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+            @NonNull int[] grantResults) {
+        if (requestCode == REQUEST_CODE_CAMERA) {
+            if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Intent intent = new Intent(this, QRCodeScanActivity.class);
+                startActivity(intent);
+            } else {
+                Toast.makeText(this, R.string.main_add_cookies_denied, Toast.LENGTH_SHORT).show();
+            }
+        } else {
+            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         }
     }
 
@@ -417,18 +366,22 @@ public class SettingsActivity extends AbsPreferenceActivity {
         public static final int REQUEST_CODE_PICK_IMAGE_DIR_L = 1;
 
         private static final String KEY_AC_COOKIES = "ac_cookies";
+        private static final String KEY_ADD_COOKIES = "add_cookies";
         private static final String KEY_SAVE_COOKIES = "save_cookies";
         private static final String KEY_RESTORE_COOKIES = "restore_cookies";
         private static final String KEY_APP_ICON = "app_icon";
+        private static final String KEY_RESTORE_IGNORED_POSTS = "restore_ignored_posts";
         private static final String KEY_ABOUT_ANALYSIS = "about_analysis";
 
         private Preference mACCookies;
+        private Preference mAddCookies;
         private Preference mSaveCookies;
         private Preference mRestoreCookies;
         private Preference mFeedId;
         private Preference mImageSaveLocation;
         private Preference mChaosLevel;
         private IconListPreference mAppIcon;
+        private Preference mRestoreIgnoredPosts;
         private Preference mAboutAnalysis;
 
         private long mMaxAgeDiff = 0;
@@ -443,6 +396,8 @@ public class SettingsActivity extends AbsPreferenceActivity {
         private int mClick = 0;
         private int mXuMing;
         private String mXuMingStr;
+
+        private IWXAPI wxApi = null;
 
         @Override
         public void onDestroy() {
@@ -460,6 +415,11 @@ public class SettingsActivity extends AbsPreferenceActivity {
             if (mPopupWindow.isShowing()) {
                 mPopupWindow.dismiss();
             }
+
+            if (wxApi != null) {
+                wxApi.detach();
+                wxApi = null;
+            }
         }
 
         @Override
@@ -468,19 +428,23 @@ public class SettingsActivity extends AbsPreferenceActivity {
             addPreferencesFromResource(R.xml.config_settings);
 
             mACCookies = findPreference(KEY_AC_COOKIES);
+            mAddCookies = findPreference(KEY_ADD_COOKIES);
             mSaveCookies = findPreference(KEY_SAVE_COOKIES);
             mRestoreCookies = findPreference(KEY_RESTORE_COOKIES);
             mFeedId = findPreference(Settings.KEY_FEED_ID);
             mImageSaveLocation = findPreference(Settings.KEY_IMAGE_SAVE_LOACTION);
             mChaosLevel = findPreference(Settings.KEY_CHAOS_LEVEL);
             mAppIcon = (IconListPreference) findPreference(KEY_APP_ICON);
+            mRestoreIgnoredPosts = findPreference(KEY_RESTORE_IGNORED_POSTS);
             mAboutAnalysis = findPreference(KEY_ABOUT_ANALYSIS);
 
             mACCookies.setOnPreferenceClickListener(this);
+            mAddCookies.setOnPreferenceClickListener(this);
             mSaveCookies.setOnPreferenceClickListener(this);
             mRestoreCookies.setOnPreferenceClickListener(this);
             mFeedId.setOnPreferenceClickListener(this);
             mImageSaveLocation.setOnPreferenceClickListener(this);
+            mRestoreIgnoredPosts.setOnPreferenceClickListener(this);
             mAboutAnalysis.setOnPreferenceClickListener(this);
 
             mChaosLevel.setOnPreferenceChangeListener(this);
@@ -507,6 +471,15 @@ public class SettingsActivity extends AbsPreferenceActivity {
                     ensurePopupWindow();
                 }
             });
+        }
+
+        @Override
+        public void onResume() {
+            super.onResume();
+
+            long maxAge = ACSite.getInstance().getCookieMaxAge(getActivity());
+            setACCookiesSummary(-2);
+            setACCookiesSummary(maxAge);
         }
 
         private void startTimingLife(long millisInFuture) {
@@ -900,6 +873,41 @@ public class SettingsActivity extends AbsPreferenceActivity {
                     mClick = 0;
                 }
                 return true;
+            } else if (KEY_ADD_COOKIES.equals(key)) {
+                new AlertDialog.Builder(getActivity())
+                        .setItems(R.array.add_cookies, new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                switch (which) {
+                                    case 0:
+                                        // Scan
+                                        if (ContextCompat.checkSelfPermission(getActivity(), Manifest.permission.CAMERA) !=
+                                                PackageManager.PERMISSION_GRANTED) {
+                                            ActivityCompat.requestPermissions(getActivity(),
+                                                    new String[]{Manifest.permission.CAMERA}, REQUEST_CODE_CAMERA);
+                                        } else {
+                                            Intent intent = new Intent(getActivity(), QRCodeScanActivity.class);
+                                            getActivity().startActivity(intent);
+                                        }
+                                        break;
+                                    case 1:
+                                        // WeChat
+                                        if (wxApi == null) {
+                                            String appId = "wxe59db8095c5f16de";
+                                            wxApi = WXAPIFactory.createWXAPI(getActivity(), appId);
+                                        }
+
+                                        WXLaunchMiniProgram.Req req = new WXLaunchMiniProgram.Req();
+                                        req.userName = "gh_f8c1b9909e51";
+                                        req.path = "pages/index/index?mode=cookie";
+                                        req.miniprogramType = WXLaunchMiniProgram.Req.MINIPTOGRAM_TYPE_RELEASE;
+                                        wxApi.sendReq(req);
+                                        break;
+                                }
+                            }
+                        })
+                        .show();
+                return true;
             } else if (KEY_SAVE_COOKIES.equals(key)) {
                 mSaveCookies.setEnabled(false);
                 new SaveCookieTask(getActivity()).execute();
@@ -934,6 +942,10 @@ public class SettingsActivity extends AbsPreferenceActivity {
                 } else {
                     showDirPickerDialogL();
                 }
+            } else if (KEY_RESTORE_IGNORED_POSTS.equals(key)) {
+                // TODO: Need dialog?
+                PostIgnoreUtils.INSTANCE.resetIgnoredPosts();
+                Toast.makeText(getActivity(), R.string.main_restore_ignored_post_successfully, Toast.LENGTH_SHORT).show();
             } else if (KEY_ABOUT_ANALYSIS.equals(key)) {
                 try {
                     CharSequence message = Html.fromHtml(IOUtils.readString(

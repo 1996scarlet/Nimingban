@@ -40,7 +40,7 @@
     <string name="click_eye_icon">Click an eye icon to hide/show the forum</string>
     <string name="modify_forum_title">Click a forum title to modify it</string>
     <string name="swipe_forum_remove">Swipe a forum to remove it</string>
-    <string name="drag_green_block_exchange">Drag a green block to exchange forums</string>
+    <string name="drag_four_bars_exchange">Drag four bars to exchange forums</string>
     <string name="click_refresh_icon_update_list">Click the refresh icon to update forum list</string>
     <string name="click_add_icon_add_forum">Click the add icon to add a custom forum</string>
 
@@ -72,6 +72,7 @@
     <string name="lucky">Haha</string>
     <string name="go_to_post">Go to thread</string>
     <string name="keyword_empty">Keyword is empty</string>
+    <string name="invalid_post_id">Thread id is not valid</string>
     <string name="not_found">Nobody here but us chickens</string>
     <string name="search_title">Search - %s</string>
 
@@ -99,6 +100,14 @@
     <string name="select_image">Select a picture</string>
     <string name="text_to_image">Text to image</string>
     <string name="take_photo">Take a photo</string>
+
+    <string name="ignore_post">Ignore this post</string>
+
+    <string name="ignore_post_confirm_title">Are you sure want to ignore this post?</string>
+    <string name="ignore_post_confirm_message">After ignored, you can access it from enter post id only.</string>
+    <string name="ignore_post_confirm_message_strict">After ignored, you can\'t access these posts unless you restored all ignored posts.</string>
+
+    <string name="ignore_post_message">This post has been ignored</string>
 
     <string name="comment_copied_clipboard">Copied to clipboard</string>
 
@@ -129,6 +138,8 @@
 
     <string name="no_cookies">No cookies</string>
     <string name="no_cookies_ac">Seems that you don\'t have cookie of AC Nimingban. Get cookie now?</string>
+    <string name="register">Register</string>
+    <string name="add_cookies">Add cookies</string>
     <string name="i_dont_care">I don\'t care</string>
     <string name="getting_cookies">Trying to get Cookie…</string>
     <string name="got_cookies">Got it! </string>
@@ -205,6 +216,20 @@
     <string name="share_image">Share image</string>
     <string name="cant_save_image">Failed to save the image. </string>
 
+    <string name="wx_add_cookie_invalid">Invalid return value</string>
+    <string name="wx_add_cookie_empty">No cookies found</string>
+    <string name="wx_add_cookie_succeed">Cookie added!</string>
+    <string name="wx_add_cookie_succeed_multi">The first cookie added!</string>
+
+    <string name="qr_scan_tip">Align the cookie QR code</string>
+    <string name="qr_scan_pic">Choose QR code from Album</string>
+    <string name="qr_scan_processing">Processing…</string>
+    <string name="qr_scan_succeed">Cookie added!</string>
+    <string name="qr_scan_invalid">Invalid cookie QR code</string>
+
+    <string name="register_web">Web</string>
+    <string name="register_wechat">WeChat</string>
+
     <string name="settings">Settings</string>
     <string name="display_settings_title">Display</string>
     <string name="config_settings_title">Config</string>
@@ -239,6 +264,11 @@
     <string name="main_ac_cookies_summary_no">Theoretically speaking, you don\'t have any cookies</string>
     <string name="main_ac_cookies_summary_valid">Theoretically speaking, your cookies will be invalid in %s</string>
     <string name="main_ac_cookies_summary_forever">Theoretically speaking, you have everlasting cookies</string>
+    <string name="main_add_cookies">Add cookies</string>
+    <string name="main_add_cookies_scan">Scan</string>
+    <string name="main_add_cookies_wechat">WeChat</string>
+    <string name="main_add_cookies_summary">Scan QR code or use WeChat to add cookies</string>
+    <string name="main_add_cookies_denied">Can\'t scan QR code without using camera</string>
     <string name="main_save_cookies">Save cookies</string>
     <string name="main_save_cookies_summary">Save cookies to external storage</string>
     <string name="main_restore_cookies">Restore cookies</string>
@@ -257,6 +287,16 @@
     <string name="main_fix_image_urls">Fix image URLs</string>
     <string name="main_fix_image_urls_summary_on">Use default image URLs</string>
     <string name="main_fix_image_urls_summary_off">Get image URLs from the API. Enable it if loading images failed</string>
+    <string name="main_strict_ignore_post_mode">Strict ignore post mode</string>
+    <string name="main_strict_ignore_post_mode_summary_on">You can\'t access ignored posts anymore</string>
+    <string name="main_strict_ignore_post_mode_summary_off">You still can access ignored posts using go to post id</string>
+    <string name="main_restore_ignored_post">Restore all ignored posts</string>
+    <string name="main_restore_ignored_post_summary">The posts you ignored will redisplayed</string>
+    <string name="main_restore_ignored_post_successfully">Restoring successful</string>
+    <string name="main_enable_customized_ac_host">Enable customized host</string>
+    <string name="main_customized_ac_host">Customized host</string>
+    <string name="main_customized_ac_host_hint">Host</string>
+    <string name="main_customized_ac_host_invalid">Invalid host</string>
     <string name="main_analysis">Enable data analysis</string>
     <string name="main_about_analysis">About data analysis</string>
     <string name="main_author">Author</string>
@@ -341,6 +381,7 @@
 
     <string name="version">Version</string>
     <string name="size">Size</string>
+    <string name="direct_download">Direct download</string>
     <string name="download_update">Download update</string>
     <string name="download">Download</string>
     <string name="downloading_update">Downloading update…</string>
@@ -358,5 +399,9 @@
     <string name="image_search_saucenao">SauceNAO</string>
     <string name="image_search_iqdb">Iqdb</string>
     <string name="image_search_iqdb_3d">Iqdb 3D</string>
+    <string name="main_forum_auto_sorting">Forum Auto Sorting</string>
+    <string name="main_forum_auto_sorting_summary_on">Sort forums by frequency</string>
+    <string name="main_forum_auto_sorting_summary_off">Fixed forum order</string>
+    <string name="click_star_icon_pin">Click the star to pin a favorite forum on the top</string>
 
 </resources>

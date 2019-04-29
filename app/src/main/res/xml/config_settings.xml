@@ -24,6 +24,11 @@
         android:title="@string/main_ac_cookies"/>
 
     <Preference
+        android:key="add_cookies"
+        android:title="@string/main_add_cookies"
+        android:summary="@string/main_add_cookies_summary"/>
+
+    <Preference
         android:key="save_cookies"
         android:title="@string/main_save_cookies"
         android:summary="@string/main_save_cookies_summary"/>
@@ -77,6 +82,33 @@
         app:entryIcons="@array/app_icon_entry_icons"
         android:defaultValue="0"
         android:widgetLayout="@layout/preference_widget_icon_list"/>
+
+    <com.hippo.preference.FixedSwitchPreference
+        style="?android:attr/preferenceStyle"
+        android:key="strict_ignore_post_mode"
+        android:title="@string/main_strict_ignore_post_mode"
+        app:summaryOn="@string/main_strict_ignore_post_mode_summary_on"
+        app:summaryOff="@string/main_strict_ignore_post_mode_summary_off"
+        android:defaultValue="false"
+        android:widgetLayout="@layout/preference_widget_fixed_switch"/>
+
+    <Preference
+        android:key="restore_ignored_posts"
+        android:title="@string/main_restore_ignored_post"
+        android:summary="@string/main_restore_ignored_post_summary"/>
+
+    <com.hippo.preference.FixedSwitchPreference
+        style="?android:attr/preferenceStyle"
+        android:key="enable_customized_ac_host"
+        android:title="@string/main_enable_customized_ac_host"
+        android:defaultValue="false"
+        android:widgetLayout="@layout/preference_widget_fixed_switch" />
+
+    <com.hippo.nimingban.preference.HostPreference
+        style="?android:attr/preferenceStyle"
+        android:key="customized_ac_host"
+        android:title="@string/main_customized_ac_host"
+        android:dependency="enable_customized_ac_host"/>
 
     <com.hippo.preference.FixedSwitchPreference
         style="?android:attr/preferenceStyle"

@@ -40,7 +40,7 @@
     <string name="click_eye_icon">点击眼睛图标隐藏/显示板块</string>
     <string name="modify_forum_title">点击板块名称以修改</string>
     <string name="swipe_forum_remove">滑动板块以删除</string>
-    <string name="drag_green_block_exchange">拖动绿色方块交换板块</string>
+    <string name="drag_four_bars_exchange">拖动四道杠方块交换板块</string>
     <string name="click_refresh_icon_update_list">点击刷新图标更新板块列表</string>
     <string name="click_add_icon_add_forum">点击添加图标添加自定义版块</string>
 
@@ -72,6 +72,7 @@
     <string name="lucky">哈哈</string>
     <string name="go_to_post">去串</string>
     <string name="keyword_empty">关键字为空</string>
+    <string name="invalid_post_id">不是有效的串号</string>
     <string name="not_found">啥都找不到</string>
     <string name="search_title">搜索 - %s</string>
 
@@ -99,6 +100,14 @@
     <string name="select_image">选择图片</string>
     <string name="text_to_image">生成文字图片</string>
     <string name="take_photo">拍个照</string>
+
+    <string name="ignore_post">永久屏蔽此串</string>
+
+    <string name="ignore_post_confirm_title">你确定要屏蔽此串吗？</string>
+    <string name="ignore_post_confirm_message">今后你只能通过输入此串串号进入</string>
+    <string name="ignore_post_confirm_message_strict">今后除非你通过设置取消屏蔽所有串，否则将无法再次访问</string>
+
+    <string name="ignore_post_message">此串已被你屏蔽</string>
 
     <string name="comment_copied_clipboard">评论文字已复制到剪贴板</string>
 
@@ -128,7 +137,9 @@
     <string name="image_search">搜图</string>
 
     <string name="no_cookies">没有 Cookies</string>
-    <string name="no_cookies_ac">似乎你没有饼干。尝试获取饼干？</string>
+    <string name="no_cookies_ac">似乎你没有饼干。要来注册并获取饼干？</string>
+    <string name="register">注册</string>
+    <string name="add_cookies">添加饼干</string>
     <string name="i_dont_care">我不在意</string>
     <string name="getting_cookies">获取饼干中…</string>
     <string name="got_cookies">拿到饼干了！</string>
@@ -198,6 +209,20 @@
     <string name="share_image">分享图片</string>
     <string name="cant_save_image">无法保存图片</string>
 
+    <string name="wx_add_cookie_invalid">无效的返回值</string>
+    <string name="wx_add_cookie_empty">未找到饼干</string>
+    <string name="wx_add_cookie_succeed">添加饼干成功！</string>
+    <string name="wx_add_cookie_succeed_multi">已添加第一块饼干</string>
+
+    <string name="qr_scan_tip">请对准饼干二维码</string>
+    <string name="qr_scan_pic">从图片中读取二维码</string>
+    <string name="qr_scan_processing">处理中…</string>
+    <string name="qr_scan_succeed">添加饼干成功！</string>
+    <string name="qr_scan_invalid">无效的饼干二维码</string>
+
+    <string name="register_web">网页</string>
+    <string name="register_wechat">微信</string>
+
     <string name="settings">设置</string>
     <string name="display_settings_title">显示</string>
     <string name="config_settings_title">配置</string>
@@ -232,6 +257,11 @@
     <string name="main_ac_cookies_summary_no">理论上来说，你没有饼干</string>
     <string name="main_ac_cookies_summary_valid">理论上来说，你的饼干将在 %s 后失效</string>
     <string name="main_ac_cookies_summary_forever">理论上来说，你拥有永恒的饼干</string>
+    <string name="main_add_cookies">添加饼干</string>
+    <string name="main_add_cookies_scan">扫码</string>
+    <string name="main_add_cookies_wechat">微信</string>
+    <string name="main_add_cookies_summary">通过扫码或微信来添加饼干</string>
+    <string name="main_add_cookies_denied">不让用相机就无法扫描</string>
     <string name="main_save_cookies">保存饼干</string>
     <string name="main_save_cookies_summary">保存饼干至外置存储器</string>
     <string name="main_restore_cookies">恢复饼干</string>
@@ -250,6 +280,16 @@
     <string name="main_fix_image_urls">修正图片链接</string>
     <string name="main_fix_image_urls_summary_on">使用默认图片链接</string>
     <string name="main_fix_image_urls_summary_off">通过 API 获取图片链接。若图片加载失败，请启用该项。</string>
+    <string name="main_strict_ignore_post_mode">严格屏蔽模式</string>
+    <string name="main_strict_ignore_post_mode_summary_on">你将无法访问被屏蔽的串</string>
+    <string name="main_strict_ignore_post_mode_summary_off">你仍可通过输入串号的方法访问被屏蔽的串</string>
+    <string name="main_restore_ignored_post">恢复所有已屏蔽的串</string>
+    <string name="main_restore_ignored_post_summary">你之前所屏蔽的串将会重新出现</string>
+    <string name="main_restore_ignored_post_successfully">已恢复所有被屏蔽的串</string>
+    <string name="main_enable_customized_ac_host">启用自定义 host</string>
+    <string name="main_customized_ac_host">自定义 host</string>
+    <string name="main_customized_ac_host_hint">Host</string>
+    <string name="main_customized_ac_host_invalid">无效的 host</string>
     <string name="main_analysis">启用数据统计</string>
     <string name="main_about_analysis">关于数据统计</string>
     <string name="main_author">作者</string>
@@ -333,6 +373,7 @@
 
     <string name="version">版本</string>
     <string name="size">大小</string>
+    <string name="direct_download">直接下载</string>
     <string name="download_update">下载更新</string>
     <string name="download">下载</string>
     <string name="downloading_update">下载更新中</string>
@@ -350,5 +391,9 @@
     <string name="image_search_saucenao">SauceNAO</string>
     <string name="image_search_iqdb">Iqdb</string>
     <string name="image_search_iqdb_3d">Iqdb 3D</string>
+    <string name="main_forum_auto_sorting">板块自动排序</string>
+    <string name="main_forum_auto_sorting_summary_on">根据访问频率对板块排序</string>
+    <string name="main_forum_auto_sorting_summary_off">按照指定顺序</string>
+    <string name="click_star_icon_pin">选择一个板块置顶</string>
 
 </resources>

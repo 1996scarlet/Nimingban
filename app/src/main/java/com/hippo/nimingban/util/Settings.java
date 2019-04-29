@@ -26,13 +26,11 @@ import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.text.TextUtils;
-
 import com.hippo.nimingban.NMBAppConfig;
 import com.hippo.unifile.UniFile;
 import com.hippo.yorozuya.IOUtils;
 import com.hippo.yorozuya.MathUtils;
 import com.hippo.yorozuya.NumberUtils;
-
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -40,6 +38,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Set;
 
 public final class Settings {
 
@@ -92,6 +91,15 @@ public final class Settings {
 
     public static void putString(String key, String value) {
         sSettingsPre.edit().putString(key, value).apply();
+    }
+
+    public static Set<String> getStringSet(String key, Set<String> defValue) {
+        return sSettingsPre.getStringSet(key, defValue);
+    }
+
+    public static void putStringSet(String key, Set<String> value) {
+        sSettingsPre.edit().remove(key).apply(); // See: https://bon-app-etit.blogspot.com/2013/08/android-bug-stringset-in.html
+        sSettingsPre.edit().putStringSet(key, value).apply();
     }
 
     public static int getIntFromStr(String key, int defValue) {
@@ -159,6 +167,12 @@ public final class Settings {
     public static final boolean DEFAULT_SET_ANALYSIS = false;
     public static final String KEY_ANALYSIS = "analysis";
     public static final boolean DEFAULT_ANALYSIS = false;
+
+    public static final String KEY_FORUM_AUTO_SORTING = "forum_auto_sorting";
+    public static final boolean DEFAULT_FORUM_AUTO_SORTING = false;
+
+    public static final String KEY_LAST_FORUM_AGING = "last_forum_aging";
+    public static final long DEFAULT_LAST_FORUM_AGING = 0;
 
     public static boolean getDarkTheme() {
         return getBoolean(KEY_DARK_THEME, DEFAULT_DARK_THEME);
@@ -360,6 +374,22 @@ public final class Settings {
         putBoolean(KEY_ANALYSIS, value);
     }
 
+    public static boolean getForumAutoSorting() {
+        return getBoolean(KEY_FORUM_AUTO_SORTING, DEFAULT_FORUM_AUTO_SORTING);
+    }
+
+    public static void putForumAutoSorting(boolean value) {
+        putBoolean(KEY_FORUM_AUTO_SORTING, value);
+    }
+
+    public static long getLastForumAging() {
+        return getLong(KEY_LAST_FORUM_AGING, DEFAULT_LAST_FORUM_AGING);
+    }
+
+    public static void setLastForumAging(long value) {
+        putLong(KEY_LAST_FORUM_AGING, value);
+    }
+
     private static final String KEY_VERSION_CODE = "version_code";
     private static final int DEFAULT_VERSION_CODE = 0;
 
@@ -395,7 +425,7 @@ public final class Settings {
 
     public static final String[] ICON_ACTIVITY_ARRAY = {
             "com.hippo.nimingban.ui.ListActivity",
-            "com.hippo.nimingban.ui.ListActivity-ibuki",
+            "com.hippo.nimingban.ui.ListActivityIbuki",
     };
 
     public static String getDefaultIconActivity() {
@@ -415,6 +445,28 @@ public final class Settings {
 
     public static void putGuideSortForumsActivity(boolean value) {
         putBoolean(KEY_GUIDE_SORT_FORUMS_ACTIVITY, value);
+    }
+
+    public static final String KEY_GUIDE_SORTING_FOUR_BARS = "guide_sorting_four_bars";
+    public static final boolean VALUE_GUIDE_SORTING_FOUR_BARS = true;
+
+    public static boolean getGuideSortingFourBars() {
+        return getBoolean(KEY_GUIDE_SORTING_FOUR_BARS, VALUE_GUIDE_SORTING_FOUR_BARS);
+    }
+
+    public static void putGuideSortingFourBars(boolean value) {
+        putBoolean(KEY_GUIDE_SORTING_FOUR_BARS, value);
+    }
+
+    public static final String KEY_GUIDE_PINNING_STAR = "guide_pinning_star";
+    public static final boolean VALUE_GUIDE_PINNING_STAR = true;
+
+    public static boolean getGuidePinningStar() {
+        return getBoolean(KEY_GUIDE_PINNING_STAR, VALUE_GUIDE_PINNING_STAR);
+    }
+
+    public static void putGuidePinningStar(boolean value) {
+        putBoolean(KEY_GUIDE_PINNING_STAR, value);
     }
 
     public static final String KEY_GUIDE_TYPE_SEND = "guide_type_send";
@@ -449,6 +501,42 @@ public final class Settings {
     @SuppressLint("CommitPrefEdits")
     public static void putCrashFilename(String value) {
         sSettingsPre.edit().putString(KEY_CRASH_FILENAME, value).commit();
+    }
+
+    public static final String KEY_AC_HOST = "ac_host";
+    public static final String VALUE_AC_HOST = "https://adnmb1.com";
+
+    public static String getAcHost() {
+        return getString(KEY_AC_HOST, VALUE_AC_HOST);
+    }
+
+    public static void putAcHost(String value) {
+        putString(KEY_AC_HOST, value);
+    }
+
+    public static final String KEY_ENABLE_CUSTOMIZED_AC_HOST = "enable_customized_ac_host";
+    public static final boolean VALUE_ENABLE_CUSTOMIZED_AC_HOST = false;
+
+    public static boolean getEnableCustomizedAcHost() {
+        return getBoolean(KEY_ENABLE_CUSTOMIZED_AC_HOST, VALUE_ENABLE_CUSTOMIZED_AC_HOST);
+    }
+
+    public static final String KEY_CUSTOMIZED_AC_HOST = "customized_ac_host";
+    public static final String VALUE_CUSTOMIZED_AC_HOST = "https://adnmb1.com";
+
+    public static String getCustomizedAcHost() {
+        return getString(KEY_CUSTOMIZED_AC_HOST, VALUE_CUSTOMIZED_AC_HOST);
+    }
+
+    public static void putCustomizedAcHost(String value) {
+        putString(KEY_CUSTOMIZED_AC_HOST, value);
+    }
+
+    public static final String KEY_STRICT_IGNORE_MODE = "strict_ignore_post_mode";
+    public static final boolean VALUE_STRICT_IGNORE_MODE = false;
+
+    public static boolean getEnableStrictIgnoreMode() {
+        return getBoolean(KEY_STRICT_IGNORE_MODE, VALUE_STRICT_IGNORE_MODE);
     }
 
     /**

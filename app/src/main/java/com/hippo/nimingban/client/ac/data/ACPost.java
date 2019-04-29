@@ -55,6 +55,7 @@ public class ACPost extends Post {
     }
 
     public String id = "";
+    public String fid = "";
     public String img = "";
     public String ext = "";
     public String now = "";
@@ -138,7 +139,7 @@ public class ACPost extends Post {
 
         mReplyCount = NumberUtils.parseIntSafely(replyCount, -1);
 
-        mContent = ACItemUtils.generateContent(content, sage, title, name, email);
+        mContent = ACItemUtils.generateContent(content, sage, title, name);
 
         if (!TextUtils.isEmpty(img)) {
             String ext2 = ext;
@@ -189,6 +190,11 @@ public class ACPost extends Post {
     @Override
     public String getNMBId() {
         return id;
+    }
+
+    @Override
+    public String getNMBFid() {
+        return fid;
     }
 
     @Override
@@ -254,6 +260,7 @@ public class ACPost extends Post {
     @Override
     public void writeToParcel(Parcel dest, int flags) {
         dest.writeString(this.id);
+        dest.writeString(this.fid);
         dest.writeString(this.img);
         dest.writeString(this.ext);
         dest.writeString(this.now);
@@ -273,6 +280,7 @@ public class ACPost extends Post {
     // Need to call generate
     protected ACPost(Parcel in) {
         this.id = in.readString();
+        this.fid = in.readString();
         this.img = in.readString();
         this.ext = in.readString();
         this.now = in.readString();
